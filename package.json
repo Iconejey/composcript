@@ -1,0 +1,24 @@
+{
+	"name": "composcript",
+	"version": "0.0.1",
+	"description": "Component-oriented frontend web framework.",
+	"main": "",
+	"scripts": {},
+	"bin": "bin/composcript.js",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Iconejey/composcript.git"
+	},
+	"keywords": [
+		"component",
+		"javascript",
+		"web",
+		"framework"
+	],
+	"author": "Nicolas Gouwy",
+	"license": "CC0-1.0",
+	"bugs": {
+		"url": "https://github.com/Iconejey/composcript/issues"
+	},
+	"homepage": "https://github.com/Iconejey/composcript#readme"
+}
