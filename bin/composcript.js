@@ -30,7 +30,7 @@ const arg = process.argv[2];
 
 // If user wants to init CompoScript config
 if (arg === 'init') {
-	console.log(`${colors.green}Initializing CompoScript config${colors.reset}`);
+	console.log(`\n${colors.green}Initializing CompoScript config${colors.reset}\n`);
 
 	const config = {};
 
@@ -45,15 +45,26 @@ if (arg === 'init') {
 				config[type || 'scss'] = dir || './styles';
 
 				// Log config
-				console.log('Adding config to package.json:');
+				console.log('\nAdding config to package.json:');
 				console.log(config);
 
 				// Save config
 				package.composcript = config;
 				fs.writeFileSync('package.json', JSON.stringify(package, '\n', 4));
 
-				// Exit
-				rl.close();
+				// If components directory does not exist, create it
+				if (!fs.existsSync(config.components)) {
+					console.log('\nCreating components directory\n');
+					fs.mkdirSync(config.components);
+				}
+
+				// Create compiled.js file
+				fs.writeFileSync(`${config.components}/compiled.js`, '');
+
+				console.log(`You're all set! Just run ${colors.cyan}composcript watch${colors.reset} to run the compiler and add the following to your HTML file:`);
+				console.log(
+					`${colors.cyan}<${colors.red}script ${colors.magenta}src${colors.cyan}=${colors.green}"${config.components.replace('./public', '')}/compiled.js"${colors.cyan}></${colors.red}script${colors.cyan}>${colors.reset}`
+				);
 			});
 		});
 	});
@@ -73,3 +84,6 @@ else if (arg === 'watch') {
 else {
 	console.log(`Usage: ${colors.yellow}composcript [init|create|watch]${colors.reset}`);
 }
+
+// Exit
+rl.close();
