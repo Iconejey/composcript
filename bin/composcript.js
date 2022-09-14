@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const fs = require('fs');
+const child_process = require('child_process');
 const rl = require('readline').createInterface({
 	input: process.stdin,
 	output: process.stdout
@@ -65,6 +66,9 @@ if (arg === 'init') {
 				console.log(
 					`${colors.cyan}<${colors.red}script ${colors.magenta}src${colors.cyan}=${colors.green}"${config.components.replace('./public', '')}/compiled.js"${colors.cyan}></${colors.red}script${colors.cyan}>${colors.reset}`
 				);
+
+				// Exit
+				rl.close();
 			});
 		});
 	});
@@ -73,6 +77,43 @@ if (arg === 'init') {
 // If user wants to create a new component
 else if (arg === 'create') {
 	console.log(`${colors.green}Creating new component${colors.reset}`);
+
+	const config = package.composcript;
+
+	// Get component tag name
+	rl.question(`${colors.yellow}Component tag name${colors.reset} (e.g. my-component): `, tag => {
+		// If tag is not valid, exit
+		if (!tag || !/^[a-z]+-(-?[a-z0-9]+)+$/.test(tag)) {
+			console.error(`${colors.red}<${tag}></${tag}> : Invalid tag name, please use kebab-case (lowwercase letters and hyphens) and at least two words with no numbers in the first word${colors.reset}`);
+			process.exit(1);
+		}
+
+		// Deduce component class name and file path
+		const class_name = tag
+			.split('-')
+			.map(word => word[0].toUpperCase() + word.slice(1))
+			.join('');
+		const file_path = `${config.components}/${tag}.cmp`;
+
+		// Create component file and open it
+		console.log(`\nCreating ${colors.yellow}${class_name} ${colors.cyan}<${colors.red}${tag}${colors.cyan}></${colors.red}${tag}${colors.cyan}>${colors.reset} component in ${colors.green}${file_path}${colors.reset}`);
+
+		const output = `
+			class ${class_name} {
+				// <${tag}></${tag}>
+				
+				created(content) {
+					// ...
+				}
+			}
+		`;
+
+		fs.writeFileSync(file_path, output.replaceAll(/^\t\t\t/gm, ''));
+		child_process.exec(`code ${file_path}`);
+
+		// Exit
+		rl.close();
+	});
 }
 
 // If user wants to watch for changes
@@ -82,7 +123,8 @@ else if (arg === 'watch') {
 
 // Wrong argument
 else {
-	console.log(`Usage: ${colors.yellow}composcript [init|create|watch]${colors.reset}`);
+	console.log(`Usage: ${colors.cyan}composcript [init|create|watch]${colors.reset}`);
+	process.exit(1);
 }
 
 // Exit
