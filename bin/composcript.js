@@ -29,6 +29,11 @@ const package = JSON.parse(fs.readFileSync('package.json'));
 // Get the arguments
 const arg = process.argv[2];
 
+// Build function
+function build() {
+	console.log(`${colors.green}Building${colors.reset}`);
+}
+
 // If user wants to init CompoScript config
 if (arg === 'init') {
 	console.log(`\n${colors.green}Initializing CompoScript config${colors.reset}\n`);
@@ -116,6 +121,38 @@ else if (arg === 'create') {
 	});
 }
 
+// If user wants to build
+else if (arg === 'build') {
+	// Get config
+	const config = package.composcript;
+
+	// Output
+	let output = `
+		function render(html) {
+			const div = document.createElement('div');
+			div.innerHTML = html;
+			const elem = div.firstElementChild;
+			elem.remove();
+			return elem;
+		}
+	`;
+
+	// Get all component files
+	const files = fs.readdirSync(config.components);
+
+	// Loop through files
+	for (const file of files) {
+		// ...
+	}
+
+	// Write to compiled.js
+	fs.writeFileSync(`${config.components}/compiled.js`, output.replaceAll(/^\t\t/gm, ''));
+	console.log(`${colors.green}OK${colors.reset}`);
+
+	// Exit
+	rl.close();
+}
+
 // If user wants to watch for changes
 else if (arg === 'watch') {
 	console.log(`${colors.green}Watching for changes${colors.reset}`);
@@ -126,6 +163,3 @@ else {
 	console.log(`Usage: ${colors.cyan}composcript [init|create|watch]${colors.reset}`);
 	process.exit(1);
 }
-
-// Exit
-rl.close();
