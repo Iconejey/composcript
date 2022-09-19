@@ -43,8 +43,68 @@ function compileComponent(component_tag, code) {
 		process.exit(1);
 	}
 
+	// Get attributes
+	const attributes = attribute_map
+		.replace(`// <${component_tag}`, '')
+		.replace('/>', '')
+		.trim()
+		.split(' ')
+		.filter(attr => attr);
+
+	let bottom_code = '';
+
+	// For each attribute
+	for (const attribute of attributes) {
+		// If attribute is a class
+		if (attribute.includes('.')) {
+			// Add getter and setter for the class
+			bottom_code += `
+				get ${attribute.slice(1)}() {
+					return this.classList.contains('${attribute.slice(1)}');
+				}
+
+				set ${attribute.slice(1)}(val) {
+					this.classList.toggle('${attribute.slice(1)}', val);
+				}
+			`;
+		}
+
+		// Else check if attribute is a boolean
+		else if (attribute.includes('?')) {
+			// Add getter and setter for the boolean
+			bottom_code += `
+				get ${attribute.slice(0, -1)}() {
+					return this.hasAttribute('${attribute.slice(0, -1)}');
+				}
+
+				set ${attribute.slice(0, -1)}(val) {
+					this.toggleAttribute('${attribute.slice(0, -1)}', val);
+				}
+			`;
+		}
+
+		// Else, attribute is a normal attribute
+		else {
+			const attr_name = attribute.replace('!', '');
+
+			// Add getter and setter for the attribute
+			bottom_code += `
+				get ${attr_name}() {
+					return this.getAttribute('${attr_name}');
+				}
+
+				set ${attr_name}(val) {
+					this.setAttribute('${attr_name}', val);
+				}
+			`;
+		}
+	}
+
+	// Add bottom code to the component
+	code = code.slice(0, -1) + bottom_code.replace(/^\t{4}/gm, '\t') + '}';
+
 	// Add constructor if not present
-	if (!code.includes('constructor')) code = code.replace(attribute_map, `constructor(attr) { super(attr); }`);
+	code = code.replace(attribute_map, code.includes('constructor') ? '' : `constructor(attr) { super(attr); }`);
 
 	// <This> tag
 	code = code.replaceAll(/<This.*?>.*?<\/This>/gs, this_tag => {
