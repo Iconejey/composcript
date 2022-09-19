@@ -30,9 +30,12 @@ const package = JSON.parse(fs.readFileSync('package.json'));
 const arg = process.argv[2];
 
 // Compile component function
-function compileComponent(code) {
+function compileComponent(component_tag, code) {
 	// Add HTMLElement extension if not present
 	if (!code.includes('extends')) code = code.replace(/class \w+/, '$& extends HTMLElement');
+
+	// Get attribute map
+	const attribute_map = code.match(new RegExp(`\/\/\\s*<${component_tag}.*?\/>`))?.[0];
 
 	// <This> tag
 	code = code.replaceAll(/<This.*?>.*?<\/This>/gs, this_tag => {
@@ -108,7 +111,7 @@ function build() {
 		const component_code = code.slice(component_start, component_end + 1);
 
 		// Replace by compiled component
-		code = code.replace(component_code, compileComponent(component_code));
+		code = code.replace(component_code, compileComponent(file.slice(0, -4), component_code));
 
 		// Add compiled code to output
 		output += '\n' + code;
@@ -190,7 +193,7 @@ else if (arg === 'create') {
 
 		const output = `
 			class ${class_name} {
-				// <${tag}></${tag}>
+				// <${tag} />
 				
 				created(content) {
 					// ...
