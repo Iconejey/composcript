@@ -1,6 +1,6 @@
 {
 	"name": "composcript",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"description": "Component-oriented frontend web framework.",
 	"main": "",
 	"scripts": {},

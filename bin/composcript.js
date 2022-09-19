@@ -34,6 +34,18 @@ function compileComponent(code) {
 	// Add HTMLElement extension if not present
 	if (!code.includes('extends')) code = code.replace(/class \w+/, '$& extends HTMLElement');
 
+	// <This> tag
+	code = code.replaceAll(/<This.*?>.*?<\/This>/gs, this_tag => {
+		// Get inner HTML
+		let innerHTML = this_tag.match(/<This.*?>(.*?)<\/This>/s)[1];
+
+		// Add $ to {} variables
+		innerHTML = innerHTML.replace(/{(.*?)}/g, '${$1}');
+
+		// Return innerHTML
+		return `this.innerHTML = \`${innerHTML}\``;
+	});
+
 	// Return compiled code
 	return code;
 }
