@@ -53,6 +53,15 @@ function compileComponent(component_tag, code) {
 
 	let bottom_code = '';
 
+	const required_attributes = attributes.filter(a => a.includes('!')).map(a => a.replace('!', ''));
+
+	// Add static getter for required attributes
+	bottom_code += `
+				get requiredAttributes() {
+					return ${JSON.stringify(required_attributes)};
+				}
+	`;
+
 	// For each attribute
 	for (const attribute of attributes) {
 		// If attribute is a class
@@ -143,7 +152,7 @@ function build() {
 			constructor(attr) {
 				super();
 		
-				this.created = false;
+				this.creation_complete = false;
 		
 				if (attr) {
 					for (let key in attr) this.setAttribute(key, attr[key]);
@@ -151,9 +160,16 @@ function build() {
 			}
 		
 			async connectedCallback() {
-				if (!this.created) {
-					this.created = true;
+				if (!this.creation_complete) {
+					this.creation_complete = true;
 					const content = this.innerHTML;
+
+					for (const req_attr of this.requiredAttributes) {
+						if (!this.hasAttribute(req_attr)) {
+							throw new Error(\`Required attribute "\${req_attr}" not found\`);
+						}
+					}
+					
 					this.created(content);
 				}
 			}
