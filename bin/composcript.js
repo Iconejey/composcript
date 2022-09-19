@@ -110,7 +110,7 @@ function compileComponent(component_tag, code) {
 	}
 
 	// Add bottom code to the component
-	code = code.slice(0, -1) + bottom_code.replace(/^\t{4}/gm, '\t') + '}';
+	code = code.slice(0, -1) + bottom_code.replace(/^\t{4}/gm, '\t') + `}\n\ndocument.registerElement('${component_tag}', ${code.match(/class (\w+)/)?.[1]});`;
 
 	// Add constructor if not present
 	code = code.replace(attribute_map, code.includes('constructor') ? '' : `constructor(attr) { super(attr); }`);
