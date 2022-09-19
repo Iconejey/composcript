@@ -32,7 +32,7 @@ const arg = process.argv[2];
 // Compile component function
 function compileComponent(component_tag, code) {
 	// Add HTMLElement extension if not present
-	if (!code.includes('extends')) code = code.replace(/class \w+/, '$& extends HTMLElement');
+	if (!code.includes('extends')) code = code.replace(/class \w+/, '$& extends ComposcriptComponent');
 
 	// Get attribute map
 	const attribute_map = code.match(new RegExp(`\/\/\\s*<${component_tag}.*?\/>`))?.[0];
@@ -42,6 +42,9 @@ function compileComponent(component_tag, code) {
 		console.log(`${colors.red}Attribute map not found, please add "// <${component_tag} />" to the top of the component${colors.reset}`);
 		process.exit(1);
 	}
+
+	// Add constructor if not present
+	if (!code.includes('constructor')) code = code.replace(attribute_map, `constructor(attr) { super(attr); }`);
 
 	// <This> tag
 	code = code.replaceAll(/<This.*?>.*?<\/This>/gs, this_tag => {
@@ -74,6 +77,27 @@ function build() {
 			const elem = div.firstElementChild;
 			elem.remove();
 			return elem;
+		}
+
+		class ComposcriptComponent extends HTMLElement {
+			constructor(attr) {
+				super();
+		
+				this.created = false;
+		
+				if (attr) {
+					for (let key in attr) this.setAttribute(key, attr[key]);
+				}
+			}
+		
+			async connectedCallback() {
+				if (!this.created) {
+					this.created = true;
+					const content = this.innerHTML;
+					this.created(content);
+				}
+			}
+		
 		}
 	`;
 
