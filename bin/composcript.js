@@ -29,9 +29,82 @@ const package = JSON.parse(fs.readFileSync('package.json'));
 // Get the arguments
 const arg = process.argv[2];
 
+// Compile component function
+function compileComponent(code) {
+	// Add HTMLElement extension if not present
+	if (!code.includes('extends')) code = code.replace(/class \w+/, '$& extends HTMLElement');
+
+	// Return compiled code
+	return code;
+}
+
 // Build function
 function build() {
-	console.log(`${colors.green}Building${colors.reset}`);
+	console.clear();
+
+	// Get config
+	const config = package.composcript;
+
+	// Output
+	let output = `
+		function render(html) {
+			const div = document.createElement('div');
+			div.innerHTML = html;
+			const elem = div.firstElementChild;
+			elem.remove();
+			return elem;
+		}
+	`;
+
+	// Remove \t
+	output = output.replaceAll(/^\t\t/gm, '').replace(/\t$/, '');
+
+	// Get all component files
+	const files = fs.readdirSync(config.components);
+
+	// Loop through files
+	for (const file of files) {
+		// If file is not a component, skip
+		if (!file.endsWith('.cmp')) continue;
+
+		console.log(`Compiling ${colors.yellow}${file}${colors.reset}`);
+
+		// Get component code
+		let code = fs.readFileSync(`${config.components}/${file}`).toString();
+
+		// Get component class
+		const component_start = code.indexOf('class');
+		let component_end = component_start + 1;
+		let curly_count = 0;
+
+		// Count curly braces
+		while (component_end < code.length) {
+			const char = code[component_end];
+
+			// If open curly brace, increment
+			if (char === '{') curly_count++;
+			// Else if close curly brace, decrement and if 0, break
+			else if (char === '}') {
+				curly_count--;
+				if (curly_count === 0) break;
+			}
+
+			component_end++;
+		}
+
+		// Cut out component class
+		const component_code = code.slice(component_start, component_end + 1);
+
+		// Replace by compiled component
+		code = code.replace(component_code, compileComponent(component_code));
+
+		// Add compiled code to output
+		output += '\n' + code;
+	}
+
+	// Write to compiled.js
+	fs.writeFileSync(`${config.components}/compiled.js`, output);
+	console.log(`${colors.green}OK${colors.reset}`);
 }
 
 // If user wants to init CompoScript config
@@ -123,31 +196,7 @@ else if (arg === 'create') {
 
 // If user wants to build
 else if (arg === 'build') {
-	// Get config
-	const config = package.composcript;
-
-	// Output
-	let output = `
-		function render(html) {
-			const div = document.createElement('div');
-			div.innerHTML = html;
-			const elem = div.firstElementChild;
-			elem.remove();
-			return elem;
-		}
-	`;
-
-	// Get all component files
-	const files = fs.readdirSync(config.components);
-
-	// Loop through files
-	for (const file of files) {
-		// ...
-	}
-
-	// Write to compiled.js
-	fs.writeFileSync(`${config.components}/compiled.js`, output.replaceAll(/^\t\t/gm, ''));
-	console.log(`${colors.green}OK${colors.reset}`);
+	build();
 
 	// Exit
 	rl.close();
