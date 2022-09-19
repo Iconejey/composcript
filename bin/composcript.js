@@ -37,6 +37,12 @@ function compileComponent(component_tag, code) {
 	// Get attribute map
 	const attribute_map = code.match(new RegExp(`\/\/\\s*<${component_tag}.*?\/>`))?.[0];
 
+	// If attribute map is not present, error
+	if (!attribute_map) {
+		console.log(`${colors.red}Attribute map not found, please add "// <${component_tag} />" to the top of the component${colors.reset}`);
+		process.exit(1);
+	}
+
 	// <This> tag
 	code = code.replaceAll(/<This.*?>.*?<\/This>/gs, this_tag => {
 		// Get inner HTML
