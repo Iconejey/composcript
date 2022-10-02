@@ -223,8 +223,8 @@ function replaceHTMLCode(code) {
 }
 
 // Build function
-function build() {
-	console.clear();
+function build(log = true) {
+	if (log) console.clear();
 
 	// Get config
 	const config = package.composcript;
@@ -278,7 +278,7 @@ function build() {
 		// If file is not a component, skip
 		if (!file.endsWith('.cmp')) continue;
 
-		console.log(`Compiling ${colors.yellow}${file}${colors.reset}`);
+		if (log) console.log(`Compiling ${colors.yellow}${file}${colors.reset}`);
 
 		// Get component code
 		let code = fs.readFileSync(`${config.components}/${file}`).toString();
@@ -318,7 +318,7 @@ function build() {
 
 	// Write to compiled.js
 	fs.writeFileSync(`${config.components}/compiled.js`, output);
-	console.log(`${colors.green}OK${colors.reset}`);
+	if (log) console.log(`${colors.green}OK${colors.reset}`);
 }
 
 // If user wants to init CompoScript config
@@ -418,7 +418,29 @@ else if (arg === 'build') {
 
 // If user wants to watch for changes
 else if (arg === 'watch') {
+	console.clear();
 	console.log(`${colors.green}Watching for changes${colors.reset}`);
+
+	const config = package.composcript;
+
+	// Build once
+	build(false);
+
+	// Use timeout to prevent multiple builds
+	let timeout;
+
+	// Watch for changes
+	fs.watch(config.components, { recursive: true }, (event, file) => {
+		// If file is not a component, ignore
+		if (!file || !file.endsWith('.cmp')) return;
+
+		// Clear timeout and set new one
+		if (timeout) clearTimeout(timeout);
+		timeout = setTimeout(() => {
+			console.log(`${colors.green}Change detected in ${file}${colors.reset}`);
+			build(false);
+		}, 500);
+	});
 }
 
 // Wrong argument
