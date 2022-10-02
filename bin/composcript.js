@@ -115,19 +115,110 @@ function compileComponent(component_tag, code) {
 	// Add constructor if not present
 	code = code.replace(attribute_map, code.includes('constructor') ? '' : `constructor(attr) { super(attr); }`);
 
-	// <This> tag
-	code = code.replaceAll(/<This.*?>.*?<\/This>/gs, this_tag => {
-		// Get inner HTML
-		let innerHTML = this_tag.match(/<This.*?>(.*?)<\/This>/s)[1];
-
-		// Add $ to {} variables
-		innerHTML = innerHTML.replace(/{(.*?)}/g, '${$1}');
-
-		// Return innerHTML
-		return `this.innerHTML = \`${innerHTML}\``;
-	});
-
 	// Return compiled code
+	return code;
+}
+
+// Replace html code by render() function
+function replaceHTMLCode(code) {
+	let current = 0;
+	let line = 1;
+	let start = null;
+	let height = 0;
+
+	let line_comment = false;
+	let block_comment = false;
+
+	let in_string = false;
+	let string_type = null;
+
+	// Crawl through the code
+	while (current < code.length) {
+		const char = code[current];
+
+		// If current chracter is a \n, increase line
+		if (char === '\n') {
+			line++;
+			line_comment = false;
+		}
+
+		// Check for comments
+		const two_chars = code.slice(current, current + 2);
+		if (two_chars === '//') line_comment = true;
+		if (two_chars === '/*') block_comment = true;
+		if (two_chars === '*/') block_comment = false;
+
+		// If not in a comment
+		if (!line_comment && !block_comment) {
+			// If currently not in a HTML block, check for strings
+			if (!start) {
+				// Check for strings
+				if (char === '"' || char === "'" || char === '`') {
+					if (!in_string) {
+						in_string = true;
+						string_type = char;
+					} else if (char === string_type) {
+						in_string = false;
+						string_type = null;
+					}
+				}
+			}
+
+			// If not in a string
+			if (!in_string) {
+				// If current character is a '<'
+				if (char === '<') {
+					// Check if it is a HTML tag
+					const tag = code.slice(current).match(/^<\/?(\w+)(.*?)>/)?.[0];
+
+					// If it is a HTML tag
+					if (tag) {
+						// If start is null, set start to current
+						if (start === null) start = current;
+
+						// If it is not orphan tag, increase height if open tag, decrease if close tag
+						if (!tag.includes('/>')) {
+							if (tag[1] !== '/') height++;
+							else height--;
+						}
+
+						// If height is 0, the tag is closed
+						if (height === 0) {
+							// Slice the HTML code
+							let html_code = code.slice(start, current + tag.length);
+
+							// Replace all {/* */} by <!-- -->
+							html_code = html_code.replace('{/*', '<!--').replace('*/}', '-->');
+
+							// Replace all {...} with ${...}
+							html_code = html_code.replaceAll(/{/g, '${');
+
+							// If the HTML code is a <This> tag, replace it with an innerHTML call
+							if (html_code.includes('<This')) {
+								html_code = html_code.replace(/<This(.*?)>/g, 'this.innerHTML = `');
+								html_code = html_code.replace(/<\/This>/g, '`');
+							}
+
+							// Else, replace it with a renderComposcriptHTMl() call
+							else html_code = `renderComposcriptHTMl(\`${html_code}\`)`;
+
+							// Add to the code
+							code = code.slice(0, start) + html_code + code.slice(current + tag.length);
+
+							// Update current
+							current = start + html_code.length;
+
+							// Reset start
+							start = null;
+						}
+					}
+				}
+			}
+		}
+
+		current++;
+	}
+
 	return code;
 }
 
@@ -140,7 +231,7 @@ function build() {
 
 	// Output
 	let output = `
-		function render(html) {
+		function renderComposcriptHTMl(html) {
 			const div = document.createElement('div');
 			div.innerHTML = html;
 			const elem = div.firstElementChild;
@@ -192,6 +283,9 @@ function build() {
 
 		// Get component code
 		let code = fs.readFileSync(`${config.components}/${file}`).toString();
+
+		// Handle HTML code
+		code = replaceHTMLCode(code);
 
 		// Get component class
 		const component_start = code.indexOf('class');
