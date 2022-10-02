@@ -253,7 +253,6 @@ function build() {
 			async connectedCallback() {
 				if (!this.creation_complete) {
 					this.creation_complete = true;
-					const content = this.innerHTML;
 
 					for (const req_attr of this.requiredAttributes) {
 						if (!this.hasAttribute(req_attr)) {
@@ -261,7 +260,7 @@ function build() {
 						}
 					}
 					
-					this.created(content);
+					this.created();
 				}
 			}
 		
@@ -386,7 +385,7 @@ else if (arg === 'create') {
 			.split('-')
 			.map(word => word[0].toUpperCase() + word.slice(1))
 			.join('');
-		const file_path = `${config.components}/${tag}.cmp`;
+		const file_path = `${config.components}/${tag}.jsx`;
 
 		// Create component file and open it
 		console.log(`\nCreating ${colors.yellow}${class_name} ${colors.cyan}<${colors.red}${tag}${colors.cyan}></${colors.red}${tag}${colors.cyan}>${colors.reset} component in ${colors.green}${file_path}${colors.reset}`);
@@ -395,8 +394,8 @@ else if (arg === 'create') {
 			class ${class_name} {
 				// <${tag} />
 				
-				created(content) {
-					// ...
+				created() {
+					<This></This>
 				}
 			}
 		`;
