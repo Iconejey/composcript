@@ -276,7 +276,7 @@ function build(log = true) {
 	// Loop through files
 	for (const file of files) {
 		// If file is not a component, skip
-		if (!file.endsWith('.cmp')) continue;
+		if (!file.endsWith('.jsx')) continue;
 
 		if (log) console.log(`Compiling ${colors.yellow}${file}${colors.reset}`);
 
@@ -432,7 +432,7 @@ else if (arg === 'watch') {
 	// Watch for changes
 	fs.watch(config.components, { recursive: true }, (event, file) => {
 		// If file is not a component, ignore
-		if (!file || !file.endsWith('.cmp')) return;
+		if (!file || !file.endsWith('.jsx')) return;
 
 		// Clear timeout and set new one
 		if (timeout) clearTimeout(timeout);
