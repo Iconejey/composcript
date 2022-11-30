@@ -1,13 +1,13 @@
 {
-	"name": "composcript",
-	"version": "0.0.16",
+	"name": "compost-framework",
+	"version": "0.0.18",
 	"description": "Component-oriented frontend web framework.",
 	"main": "",
 	"scripts": {},
-	"bin": "bin/composcript.js",
+	"bin": "bin/compost.js",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/Iconejey/composcript.git"
+		"url": "git+https://github.com/Iconejey/compost.git"
 	},
 	"keywords": [
 		"component",
@@ -18,7 +18,7 @@
 	"author": "Nicolas Gouwy",
 	"license": "CC0-1.0",
 	"bugs": {
-		"url": "https://github.com/Iconejey/composcript/issues"
+		"url": "https://github.com/Iconejey/compost/issues"
 	},
-	"homepage": "https://github.com/Iconejey/composcript#readme"
+	"homepage": "https://github.com/Iconejey/compost#readme"
 }

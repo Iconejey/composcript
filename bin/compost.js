@@ -66,44 +66,51 @@ function compileComponent(component_tag, code) {
 	for (const attribute of attributes) {
 		// If attribute is a class
 		if (attribute.includes('.')) {
+			const html_attr = attribute.slice(1);
+			const js_attr = html_attr.replace('-', '_');
+
 			// Add getter and setter for the class
 			bottom_code += `
-				get ${attribute.slice(1)}() {
-					return this.classList.contains('${attribute.slice(1)}');
+				get ${js_attr}() {
+					return this.classList.contains('${html_attr}');
 				}
 
-				set ${attribute.slice(1)}(val) {
-					this.classList.toggle('${attribute.slice(1)}', val);
+				set ${js_attr}(val) {
+					this.classList.toggle('${html_attr}', val);
 				}
 			`;
 		}
 
 		// Else check if attribute is a boolean
 		else if (attribute.includes('?')) {
+			const html_attr = attribute.slice(0, -1);
+			const js_attr = html_attr.replace('-', '_');
+
 			// Add getter and setter for the boolean
 			bottom_code += `
-				get ${attribute.slice(0, -1)}() {
-					return this.hasAttribute('${attribute.slice(0, -1)}');
+				get ${js_attr}() {
+					return this.hasAttribute('${html_attr}');
 				}
 
-				set ${attribute.slice(0, -1)}(val) {
-					this.toggleAttribute('${attribute.slice(0, -1)}', val);
+				set ${js_attr}(val) {
+					this.toggleAttribute('${html_attr}', val);
 				}
 			`;
 		}
 
 		// Else, attribute is a normal attribute
 		else {
-			const attr_name = attribute.replace('!', '');
+			const html_attr = attribute.replace('!', '');
+			const js_attr = html_attr.replace('-', '_');
 
 			// Add getter and setter for the attribute
 			bottom_code += `
-				get ${attr_name}() {
-					return this.getAttribute('${attr_name}');
+				get ${js_attr}() {
+					return this.getAttribute('${html_attr}');
 				}
 
-				set ${attr_name}(val) {
-					this.setAttribute('${attr_name}', val);
+				set ${js_attr}(val) {
+					this.setAttribute('${html_attr}', val);
 				}
 			`;
 		}
@@ -144,7 +151,8 @@ function replaceHTMLCode(code) {
 
 		// Check for comments
 		const two_chars = code.slice(current, current + 2);
-		if (two_chars === '//') line_comment = true;
+		const pred_char = code[current - 1] || '';
+		if (two_chars === '//' && pred_char !== ':') line_comment = true;
 		if (two_chars === '/*') block_comment = true;
 		if (two_chars === '*/') block_comment = false;
 
@@ -176,11 +184,27 @@ function replaceHTMLCode(code) {
 						// If start is null, set start to current
 						if (start === null) start = current;
 
-						// If it is not orphan tag, increase height if open tag, decrease if close tag
-						if (!tag.includes('/>')) {
-							if (tag[1] !== '/') height++;
-							else height--;
+						// If self closing tag
+						if (tag.includes('/>')) {
+							// Get tag name
+							const tag_name = tag.match(/^<\/?([\w-]+)/)?.[1];
+
+							// If tag is a component tag (includes a dash)
+							if (tag_name.includes('-')) {
+								// Make the tag a non self closing tag
+								const new_tag = tag.replace(/\s*\/>/, `></${tag_name}>`);
+
+								// Replace the tag
+								code = code.slice(0, current) + new_tag + code.slice(current + tag.length);
+
+								// Move current to the end of the tag
+								current += new_tag.length - 1;
+							}
 						}
+
+						// Else increase / decrease height
+						else if (tag[1] !== '/') height++;
+						else height--;
 
 						// If height is 0, the tag is closed
 						if (height === 0) {
@@ -246,7 +270,7 @@ function build(log = true) {
 				this.creation_complete = false;
 		
 				if (attr) {
-					for (let key in attr) this.setAttribute(key, attr[key]);
+					for (let key in attr) this.setAttribute(key.replace('_', '-'), attr[key]);
 				}
 			}
 		
@@ -388,7 +412,7 @@ else if (arg === 'create') {
 		const file_path = `${config.components}/${tag}.jsx`;
 
 		// Create component file and open it
-		console.log(`\nCreating ${colors.yellow}${class_name} ${colors.cyan}<${colors.red}${tag}${colors.cyan}></${colors.red}${tag}${colors.cyan}>${colors.reset} component in ${colors.green}${file_path}${colors.reset}`);
+		console.log(`\nCreating ${colors.yellow}${class_name} ${colors.cyan}<${colors.red}${tag}${colors.cyan} />${colors.reset} component in ${colors.green}${file_path}${colors.reset}`);
 
 		const output = `
 			class ${class_name} {
