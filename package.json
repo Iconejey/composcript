@@ -4,7 +4,9 @@
 	"description": "Component-oriented frontend web framework.",
 	"main": "",
 	"scripts": {},
-	"bin": "bin/compost.js",
+	"bin": {
+		"compost": "bin/compost.js"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Iconejey/compost.git"
@@ -20,5 +22,9 @@
 	"bugs": {
 		"url": "https://github.com/Iconejey/compost/issues"
 	},
-	"homepage": "https://github.com/Iconejey/compost#readme"
+	"homepage": "https://github.com/Iconejey/compost#readme",
+	"dependencies": {
+		"canvas": "^2.10.2",
+		"readline-sync": "^1.4.10"
+	}
 }

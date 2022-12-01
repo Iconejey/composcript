@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 const fs = require('fs');
+const path = require('path');
 const child_process = require('child_process');
-const rl = require('readline').createInterface({
-	input: process.stdin,
-	output: process.stdout
-});
+const { question } = require('readline-sync');
+const { createCanvas, loadImage } = require('canvas');
 
 const colors = {
 	red: '\x1b[31m',
@@ -17,22 +16,13 @@ const colors = {
 	reset: '\x1b[0m'
 };
 
-// If package.json is not found, exit
-if (!fs.existsSync('package.json')) {
-	console.log(`${colors.red}package.json not found${colors.reset}`);
-	process.exit(1);
-}
-
-// Get package.json
-const package = JSON.parse(fs.readFileSync('package.json'));
-
 // Get the arguments
 const arg = process.argv[2];
 
 // Compile component function
 function compileComponent(component_tag, code) {
 	// Add HTMLElement extension if not present
-	if (!code.includes('extends')) code = code.replace(/class \w+/, '$& extends ComposcriptComponent');
+	if (!code.includes('extends')) code = code.replace(/class \w+/, '$& extends CompostComponent');
 
 	// Get attribute map
 	const attribute_map = code.match(new RegExp(`\/\/\\s*<${component_tag}.*?\/>`))?.[0];
@@ -123,6 +113,43 @@ function compileComponent(component_tag, code) {
 	code = code.replace(attribute_map, code.includes('constructor') ? '' : `constructor(attr) { super(attr); }`);
 
 	// Return compiled code
+	return code;
+}
+
+// Compile jsx
+function compileJSX(code, tag) {
+	// Handle HTML code
+	code = replaceHTMLCode(code);
+
+	// If file is a component
+	if (tag) {
+		// Get component class
+		const component_start = code.indexOf('class');
+		let component_end = component_start + 1;
+		let curly_count = 0;
+
+		// Count curly braces
+		while (component_end < code.length) {
+			const char = code[component_end];
+
+			// If open curly brace, increment
+			if (char === '{') curly_count++;
+			// Else if close curly brace, decrement and if 0, break
+			else if (char === '}') {
+				curly_count--;
+				if (curly_count === 0) break;
+			}
+
+			component_end++;
+		}
+
+		// Cut out component class
+		const component_code = code.slice(component_start, component_end + 1);
+
+		// Replace by compiled component
+		code = code.replace(component_code, compileComponent(tag, component_code));
+	}
+
 	return code;
 }
 
@@ -223,8 +250,8 @@ function replaceHTMLCode(code) {
 								html_code = html_code.replace(/<\/This>/g, '`');
 							}
 
-							// Else, replace it with a renderComposcriptHTMl() call
-							else html_code = `renderComposcriptHTMl(\`${html_code}\`)`;
+							// Else, replace it with a renderCompostHTMl() call
+							else html_code = `renderCompostHTMl(\`${html_code}\`)`;
 
 							// Add to the code
 							code = code.slice(0, start) + html_code + code.slice(current + tag.length);
@@ -246,206 +273,390 @@ function replaceHTMLCode(code) {
 	return code;
 }
 
-// Build function
-function build(log = true) {
-	if (log) console.clear();
+// Compile html page
+function compileHTML(code) {
+	// Handle meta tags
+	code = code.replaceAll(/<meta name="(.*?)" content="(.*?)"\s?\/>/g, (match, name, content) => {
+		// Title
+		if (name === 'title')
+			return `${match}
+		<meta name="og:type" content="website" />
+		<meta name="og:title" content="${content}" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="${content}" />`;
 
-	// Get config
-	const config = package.composcript;
+		// Description
+		if (name === 'description')
+			return `${match}
+		<meta name="og:description" content="${content}" />
+		<meta name="twitter:description" content="${content}" />`;
 
-	// Output
-	let output = `
-		function renderComposcriptHTMl(html) {
-			const div = document.createElement('div');
-			div.innerHTML = html;
-			const elem = div.firstElementChild;
-			elem.remove();
-			return elem;
+		// Image
+		if (name === 'image')
+			return `<meta name="og:image" content="${content}" />
+		<meta name="twitter:image" content="${content}" />`;
+
+		if (name === 'url')
+			return `<meta name="og:url" content="${content}" />
+		<meta name="twitter:url" content="${content}" />`;
+
+		return match;
+	});
+
+	// Handle icon
+	code = code.replace(/<icon name="(.*?)"\s?\/>/g, (match, name) => {
+		return `<link rel="icon" href="/imgs/icons/badge_${name}_x192.png" type="image/png" />
+		<link rel="shortcut icon" href="/imgs/icons/badge_${name}_x192.png" type="image/png" />
+		<link rel="apple-touch-icon" href="/imgs/icons/apple_${name}_x180.png" sizes="180x180" />`;
+	});
+
+	return code;
+}
+
+// Compile manifest
+function compileManifest(content) {
+	let manifest = JSON.parse(content);
+
+	manifest.icons = [
+		{
+			src: `/imgs/icons/round_${manifest.icon}_x192.png`,
+			sizes: '192x192',
+			type: 'image/png',
+			purpose: 'any'
+		},
+		{
+			src: `/imgs/icons/round_${manifest.icon}_x512.png`,
+			sizes: '512x512',
+			type: 'image/png',
+			purpose: 'any'
+		},
+		{
+			src: `/imgs/icons/maskable_${manifest.icon}_x192.png`,
+			sizes: '192x192',
+			type: 'image/png',
+			purpose: 'maskable'
+		},
+		{
+			src: `/imgs/icons/maskable_${manifest.icon}_x512.png`,
+			sizes: '512x512',
+			type: 'image/png',
+			purpose: 'maskable'
 		}
+	];
 
-		class ComposcriptComponent extends HTMLElement {
-			constructor(attr) {
-				super();
-		
-				this.creation_complete = false;
-		
-				if (attr) {
-					for (let key in attr) this.setAttribute(key.replace('_', '-'), attr[key]);
-				}
-			}
-		
-			async connectedCallback() {
-				if (!this.creation_complete) {
-					this.creation_complete = true;
+	delete manifest.icon;
 
-					for (const req_attr of this.requiredAttributes) {
-						if (!this.hasAttribute(req_attr)) {
-							throw new Error(\`Required attribute "\${req_attr}" not found\`);
-						}
-					}
-					
-					this.created();
-				}
-			}
-		
+	return JSON.stringify(manifest, '\t', 4);
+}
+
+// Create icon
+function createIcon(image, background, size, padding, round) {
+	// Create canvas
+	const canvas = createCanvas(size, size);
+	const ctx = canvas.getContext('2d');
+
+	// Draw background
+	if (background) {
+		ctx.fillStyle = background;
+
+		if (!round) ctx.fillRect(0, 0, size, size);
+		else {
+			ctx.beginPath();
+			ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+			ctx.fill();
 		}
-	`;
-
-	// Remove \t
-	output = output.replaceAll(/^\t\t/gm, '').replace(/\t$/, '');
-
-	// Get all component files
-	const files = fs.readdirSync(config.components);
-
-	// Loop through files
-	for (const file of files) {
-		// If file is not a component, skip
-		if (!file.endsWith('.jsx')) continue;
-
-		if (log) console.log(`Compiling ${colors.yellow}${file}${colors.reset}`);
-
-		// Get component code
-		let code = fs.readFileSync(`${config.components}/${file}`).toString();
-
-		// Handle HTML code
-		code = replaceHTMLCode(code);
-
-		// Get component class
-		const component_start = code.indexOf('class');
-		let component_end = component_start + 1;
-		let curly_count = 0;
-
-		// Count curly braces
-		while (component_end < code.length) {
-			const char = code[component_end];
-
-			// If open curly brace, increment
-			if (char === '{') curly_count++;
-			// Else if close curly brace, decrement and if 0, break
-			else if (char === '}') {
-				curly_count--;
-				if (curly_count === 0) break;
-			}
-
-			component_end++;
-		}
-
-		// Cut out component class
-		const component_code = code.slice(component_start, component_end + 1);
-
-		// Replace by compiled component
-		code = code.replace(component_code, compileComponent(file.slice(0, -4), component_code));
-
-		// Add compiled code to output
-		output += '\n' + code;
 	}
 
-	// Write to compiled.js
-	fs.writeFileSync(`${config.components}/compiled.js`, output);
+	// Draw image
+	ctx.drawImage(image, padding, padding, size - padding * 2, size - padding * 2);
+
+	// Return canvas
+	return canvas;
+}
+
+// Compile icon
+async function compileIcon(elem_src) {
+	// Load icon
+	const icon = await loadImage(fs.readFileSync(elem_src));
+
+	const [name, color] = elem_src.split('/').pop().split('.').shift().split('_');
+	const dest_path = elem_src.replace('/dev/', '/dist/').replace(`/${name}_${color}.png`, '');
+
+	// Badge icons
+	fs.writeFileSync(`${dest_path}/badge_${name}_x512.png`, createIcon(icon, null, 512, 0, false).toBuffer());
+	fs.writeFileSync(`${dest_path}/badge_${name}_x192.png`, createIcon(icon, null, 192, 0, false).toBuffer());
+
+	// Maskable icons
+	fs.writeFileSync(`${dest_path}/maskable_${name}_x512.png`, createIcon(icon, color, 512, 512 * 0.2, false).toBuffer());
+	fs.writeFileSync(`${dest_path}/maskable_${name}_x192.png`, createIcon(icon, color, 192, 192 * 0.2, false).toBuffer());
+
+	// Round icons
+	fs.writeFileSync(`${dest_path}/round_${name}_x512.png`, createIcon(icon, color, 512, 512 * 0.15, true).toBuffer());
+	fs.writeFileSync(`${dest_path}/round_${name}_x192.png`, createIcon(icon, color, 192, 192 * 0.15, true).toBuffer());
+
+	// Apple icon
+	fs.writeFileSync(`${dest_path}/apple_${name}_x180.png`, createIcon(icon, color, 180, 180 * 0.15, false).toBuffer());
+}
+
+// Build function
+async function build(log = true) {
+	if (log) console.clear();
+
+	// Output
+	let compiled_scripts = fs.readFileSync(path.join(__dirname, '../resources/compost.js'));
+	let compiled_scss = '';
+
+	const dev_dir = path.join(process.cwd(), 'frontend/dev');
+	const dist_dir = path.join(process.cwd(), 'frontend/dist');
+
+	// If dist folder exists, delete it
+	if (fs.existsSync(dist_dir)) fs.rmSync(dist_dir, { recursive: true });
+
+	// Create dist folder
+	fs.mkdirSync(dist_dir);
+
+	// Crawl recursively through a directory
+	async function crawl(dir) {
+		// Get elements in the directory
+		const elems = fs.readdirSync(dir);
+
+		// For each file
+		for (const elem of elems) {
+			// Get file path
+			const elem_src = path.join(dir, elem);
+			const elem_dest = elem_src.replace(dev_dir, dist_dir);
+
+			// If file is a directory, create it in dist and crawl it
+			if (fs.statSync(elem_src).isDirectory()) {
+				fs.mkdirSync(elem_dest);
+				await crawl(elem_src);
+			}
+
+			// Else compile file to dist
+			else {
+				const content = fs.readFileSync(elem_src).toString();
+
+				// js file in scripts: add it to the compiled scripts
+				if (elem_src.endsWith('.js') && dir.endsWith('scripts')) compiled_scripts += content;
+				// jsx file: compile it and add it to the compiled scripts
+				else if (elem_src.endsWith('.jsx')) compiled_scripts += compileJSX(content, elem_src.includes('/components/') ? elem.replace('.jsx', '') : null);
+				// scss file: add it to the compiled scss
+				else if (elem_src.endsWith('.scss')) compiled_scss += content;
+				// html file: compile it and add it to dist
+				else if (elem_src.endsWith('.html')) fs.writeFileSync(elem_dest, compileHTML(content));
+				// manifest file: compile it and add it to dist
+				else if (elem_src.endsWith('manifest.json')) fs.writeFileSync(elem_dest, compileManifest(content));
+				// icon file: compile it and add it to dist
+				else if (elem_src.endsWith('.png') && dir.endsWith('icons')) await compileIcon(elem_src, elem_dest);
+				// Else copy it to dist
+				else fs.copyFileSync(elem_src, elem_dest);
+			}
+		}
+
+		// If the equivalent directory in dist is empty, delete it
+		const dist_equiv = dir.replace(dev_dir, dist_dir);
+		if (!fs.readdirSync(dist_equiv).length) fs.rmdirSync(dist_equiv);
+	}
+
+	// Crawl through the dev folder
+	await crawl(dev_dir);
+
+	// Write compiled scripts and styles to dist
+	const js_path = path.join(dist_dir, 'compiled-scripts.js');
+	const scss_path = path.join(dist_dir, 'compiled-styles.scss');
+	const css_path = path.join(dist_dir, 'compiled-styles.css');
+	fs.writeFileSync(js_path, compiled_scripts);
+	fs.writeFileSync(scss_path, compiled_scss);
+
+	// Compile scss using child process and delete scss file
+	child_process.execSync(`sass --no-source-map ${scss_path} ${css_path}`);
+	fs.unlinkSync(scss_path);
+
 	if (log) console.log(`${colors.green}OK${colors.reset}`);
 }
 
-// If user wants to init CompoScript config
+// Copy folder content to another folder (recursive)
+function copyFolder(from, to) {
+	// Get folder content
+	const elems = fs.readdirSync(from);
+
+	// Loop through elements
+	for (const elem of elems) {
+		// Get element path
+		const elem_path = `${from}/${elem}`;
+
+		// If element is a file, copy it
+		if (fs.lstatSync(elem_path).isFile()) {
+			fs.copyFileSync(elem_path, `${to}/${elem}`);
+		}
+
+		// Else, create folder and copy content
+		else {
+			fs.mkdirSync(`${to}/${elem}`);
+			copyFolder(elem_path, `${to}/${elem}`);
+		}
+	}
+}
+
+// If user wants to init Compost project
 if (arg === 'init') {
-	console.log(`\n${colors.green}Initializing CompoScript config${colors.reset}\n`);
+	// Ask for project id, name, description, author and url
+	const id = question(`${colors.yellow}Project ID: ${colors.reset}`);
+	const name = question(`${colors.yellow}Project name: ${colors.reset}`);
+	const description = question(`${colors.yellow}Project description: ${colors.reset}`);
+	const author = question(`${colors.yellow}Author: ${colors.reset}`);
+	const url = question(`${colors.yellow}URL: ${colors.reset}`);
 
-	const config = {};
+	console.log(`\n${colors.green}Initializing Compost file structure:${colors.reset}
+${id}
+├─ package.json
+├─ .env
+├─ frontend
+│  ├─ dev
+│  │  ├─ index.html
+│  │  ├─ manifest.json
+│  │  ├─ sw-server.js
+│  │  ├─ scripts
+│  │  │  ├─ main.jsx
+│  │  │  ├─ components
+│  │  │  │  ├─ test.jsx
+│  │  │  │  └─ ...
+│  │  │  ├─ libs
+│  │  │  │  └─ ...
+│  │  │  ├─ sw-client.js
+│  │  │  └─ ...
+│  │  ├─ styles
+│  │  │  ├─ main.scss
+│  │  │  └─ ...
+│  │  ├─ imgs
+│  │  │  ├─ icons
+│  │  │  │  ├─ logo.png (512x512)
+│  │  │  │  └─ ...
+│  │  │  └─ ...
+│  │  └─ ...
+│  ├─ dist (generated, used by express as '/')
+│  │  ├─ index.html
+│  │  ├─ manifest.json
+│  │  ├─ sw-server.js
+│  │  ├─ compiled-scripts.js
+│  │  ├─ compiled-styles.scss
+│  │  ├─ compiled-styles.css
+│  │  ├─ imgs
+│  │  │  ├─ icons
+│  │  │  │  ├─ badge_logo_x192.png
+│  │  │  │  ├─ badge_logo_x512.png
+│  │  │  │  ├─ maskable_logo_x192.png
+│  │  │  │  ├─ maskable_logo_x512.png
+│  │  │  │  ├─ rounded_logo_x192.png
+│  │  │  │  ├─ rounded_logo_x512.png
+│  │  │  │  ├─ apple_logo_x180.png
+│  │  │  │  └─ ...
+│  │  │  └─ ...
+│  │  └─ ...
+│  ├─ backend
+│  │  ├─ server.js
+│  │  ├─ routes.js
+│  │  └─ ...
+│  └─ ...
+└─ ...`);
 
-	// Components directory
-	rl.question(`${colors.yellow}Components directory${colors.reset} (default: ./components): `, dir => {
-		config.components = dir || './components';
+	// Copy all folders and files from template
+	const src = path.join(__dirname, '../template');
+	const dest = process.cwd();
 
-		// Styles type
-		rl.question(`${colors.yellow}Styles type${colors.reset} (default: scss): `, type => {
-			// Styles directory
-			rl.question(`${colors.yellow}Styles directory${colors.reset} (default: ./styles): `, dir => {
-				config[type || 'scss'] = dir || './styles';
+	copyFolder(src, dest);
 
-				// Log config
-				console.log('\nAdding config to package.json:');
-				console.log(config);
+	// Update package.json
+	console.log(`${colors.green}Updating package.json...${colors.reset}`);
+	const package = {
+		...JSON.parse(fs.readFileSync(`${dest}/package.json`)),
+		name: id,
+		version: '0.0.0',
+		description,
+		main: './backend/server.js',
+		scripts: {
+			start: 'node ./backend/server.js',
+			prod: `pm2 start ./backend/server.js --name ${id} && npm run logs`,
+			dev: 'nodemon ./backend/server.js',
+			logs: `pm2 logs ${id} --raw`,
+			build: 'compost build'
+		},
+		author,
+		hompage: url
+	};
 
-				// Save config
-				package.composcript = config;
-				fs.writeFileSync('package.json', JSON.stringify(package, '\n', 4));
+	fs.writeFileSync('package.json', JSON.stringify(package, '\t', 4));
 
-				// If components directory does not exist, create it
-				if (!fs.existsSync(config.components)) {
-					console.log('\nCreating components directory\n');
-					fs.mkdirSync(config.components);
-				}
+	// Update manifest.json
+	console.log(`${colors.green}Updating manifest.json...${colors.reset}`);
+	manifest = {
+		...JSON.parse(fs.readFileSync(`${dest}/frontend/dev/manifest.json`)),
+		id,
+		name,
+		short_name: name,
+		description,
+		related_applications: [{ platform: 'web', url }]
+	};
 
-				// Create compiled.js file
-				fs.writeFileSync(`${config.components}/compiled.js`, '');
+	fs.writeFileSync(`${dest}/frontend/dev/manifest.json`, JSON.stringify(manifest, '\n', 4));
 
-				console.log(`You're all set! Just run ${colors.cyan}composcript watch${colors.reset} to run the compiler and add the following to your HTML file:`);
-				console.log(
-					`${colors.cyan}<${colors.red}script ${colors.magenta}src${colors.cyan}=${colors.green}"${config.components.replace('./public', '')}/compiled.js"${colors.cyan}></${colors.red}script${colors.cyan}>${colors.reset}`
-				);
+	// Add name and description to index.html
+	let index = fs.readFileSync(`${dest}/frontend/dev/index.html`).toString();
+	const meta = `<title>${name}</title>
+		<meta name="title" content="${name}" />
+		<meta name="description" content="${description}" />
+		<meta name="url" content="${url}" />
+		<meta name="image" content="${url}/imgs/banner.png" />`;
+	index = index.replace('<title-description />', meta);
+	fs.writeFileSync(`${dest}/frontend/dev/index.html`, index);
 
-				// Exit
-				rl.close();
-			});
-		});
-	});
+	console.log(`${colors.green}Done!${colors.reset}\n`);
 }
 
 // If user wants to create a new component
 else if (arg === 'create') {
 	console.log(`${colors.green}Creating new component${colors.reset}`);
 
-	const config = package.composcript;
+	// Ask user for component tag name
+	const tag = question(`${colors.yellow}Component tag name${colors.reset} (e.g. my-component): `);
 
-	// Get component tag name
-	rl.question(`${colors.yellow}Component tag name${colors.reset} (e.g. my-component): `, tag => {
-		// If tag is not valid, exit
-		if (!tag || !/^[a-z]+-(-?[a-z0-9]+)+$/.test(tag)) {
-			console.error(`${colors.red}<${tag}></${tag}> : Invalid tag name, please use kebab-case (lowwercase letters and hyphens) and at least two words with no numbers in the first word${colors.reset}`);
-			process.exit(1);
-		}
+	// If tag is not valid, exit
+	if (!tag || !/^[a-z]+-(-?[a-z0-9]+)+$/.test(tag)) {
+		console.error(`${colors.red}<${tag}></${tag}> : Invalid tag name, please use kebab-case (lowwercase letters and hyphens) and at least two words with no numbers in the first word${colors.reset}`);
+		process.exit(1);
+	}
 
-		// Deduce component class name and file path
-		const class_name = tag
-			.split('-')
-			.map(word => word[0].toUpperCase() + word.slice(1))
-			.join('');
-		const file_path = `${config.components}/${tag}.jsx`;
+	// Deduce component class name
+	const class_name = tag
+		.split('-')
+		.map(word => word[0].toUpperCase() + word.slice(1))
+		.join('');
 
-		// Create component file and open it
-		console.log(`\nCreating ${colors.yellow}${class_name} ${colors.cyan}<${colors.red}${tag}${colors.cyan} />${colors.reset} component in ${colors.green}${file_path}${colors.reset}`);
+	// Create component file and open it
+	console.log(`\nCreating ${colors.yellow}${class_name} ${colors.cyan}<${colors.red}${tag}${colors.cyan} />${colors.reset} component`);
 
-		const output = `
-			class ${class_name} {
-				// <${tag} />
-				
-				created() {
-					<This></This>
-				}
-			}
-		`;
+	const output = `class ${class_name} {
+	// <${tag} />
+	
+	created() {
+		<This></This>;
+	}
+}`;
 
-		fs.writeFileSync(file_path, output.replaceAll(/^\t\t\t/gm, ''));
-		child_process.exec(`code ${file_path}`);
-
-		// Exit
-		rl.close();
-	});
+	const file_src = `frontend/dev/scripts/components/${tag}.jsx`;
+	fs.writeFileSync(file_src, output);
+	child_process.exec(`code ${file_src}`);
 }
 
 // If user wants to build
 else if (arg === 'build') {
 	build();
-
-	// Exit
-	rl.close();
 }
 
 // If user wants to watch for changes
 else if (arg === 'watch') {
 	console.clear();
 	console.log(`${colors.green}Watching for changes${colors.reset}`);
-
-	const config = package.composcript;
 
 	// Build once
 	build(false);
@@ -454,21 +665,18 @@ else if (arg === 'watch') {
 	let timeout;
 
 	// Watch for changes
-	fs.watch(config.components, { recursive: true }, (event, file) => {
-		// If file is not a component, ignore
-		if (!file || !file.endsWith('.jsx')) return;
-
-		// Clear timeout and set new one
+	fs.watch('frontend/dev', { recursive: true }, (event, file) => {
 		if (timeout) clearTimeout(timeout);
 		timeout = setTimeout(() => {
+			console.clear();
 			console.log(`${colors.green}Change detected in ${file}${colors.reset}`);
 			build(false);
-		}, 500);
+		}, 1000);
 	});
 }
 
 // Wrong argument
 else {
-	console.log(`Usage: ${colors.cyan}composcript [init|create|watch]${colors.reset}`);
+	console.log(`Usage: ${colors.cyan}compost [init|create|watch]${colors.reset}`);
 	process.exit(1);
 }

@@ -1,0 +1,20 @@
+// Remove browser prefixes
+* {
+	margin: 0px;
+	padding: 0px;
+	box-sizing: border-box;
+}
+
+// Global styles
+body,
+html {
+	// Make app take the whole page
+	width: 100%;
+	height: 100%;
+
+	// Default styles
+	background-color: #051923;
+	color: #eac531;
+	font-family: 'Roboto';
+	-webkit-tap-highlight-color: transparent;
+}

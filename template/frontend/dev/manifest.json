@@ -1,0 +1,21 @@
+{
+	"id": "...",
+
+	"name": "...",
+	"short_name": "...",
+	"description": "...",
+
+	"start_url": "/",
+	"scope": "/",
+
+	"display_override": ["window-controls-overlay"],
+	"display": "standalone",
+	"orientation": "any",
+
+	"background_color": "#051923",
+	"theme_color": "#eac531",
+
+	"icon": "logo",
+
+	"related_applications": []
+}

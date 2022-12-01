@@ -1,2 +1,3 @@
-# composcript
-Component-oriented frontend web framework. 
+# compost
+
+Component-oriented frontend web framework.
