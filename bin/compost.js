@@ -610,6 +610,11 @@ ${id}
 	index = index.replace('<title-description />', meta);
 	fs.writeFileSync(`${dest}/frontend/dev/index.html`, index);
 
+	// Add domain to service worker
+	let sw = fs.readFileSync(`${dest}/frontend/dev/sw-client.js`).toString();
+	sw = sw.replace('<domain>', new URL(url).origin);
+	fs.writeFileSync(`${dest}/frontend/dev/sw-client.js`, sw);
+
 	console.log(`${colors.green}Done!${colors.reset}\n`);
 }
 

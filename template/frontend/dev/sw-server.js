@@ -1,11 +1,11 @@
 // 22.11.30
 
 const use_cache = false;
-const cache_domains = ['localhost', 'notask.app', 'fonts.gstatic.com'];
+const cache_domains = ['fonts.gstatic.com', 'localhost', '<domain>'];
 const cache_ignore = [];
 
-const badge = '/img/badge_icon_x192.png';
-const icon = '/img/round_icon_x512.png';
+const badge = '/imgs/badge_logo_x192.png';
+const icon = '/imgs/round_logo_x512.png';
 
 // Install event
 self.addEventListener('install', async e => {
