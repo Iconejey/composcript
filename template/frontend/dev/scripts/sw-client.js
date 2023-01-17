@@ -31,5 +31,5 @@ async function promptInstall() {
 
 addEventListener('load', e => {
 	// Register service worker
-	navigator.serviceWorker?.register('/service-worker.js');
+	navigator.serviceWorker?.register('/sw-server.js');
 });
