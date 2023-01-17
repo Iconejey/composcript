@@ -351,6 +351,9 @@ function compileManifest(content) {
 
 // Create icon
 function createIcon(image, background, size, padding, round) {
+	// If background color is hex, add # to it
+	if (background?.length === 6) background = '#' + background;
+
 	// Create canvas
 	const canvas = createCanvas(size, size);
 	const ctx = canvas.getContext('2d');
@@ -379,7 +382,7 @@ async function compileIcon(elem_src) {
 	// Load icon
 	const icon = await loadImage(fs.readFileSync(elem_src));
 
-	const [name, color] = elem_src.split('/').pop().split('.').shift().split('_');
+	let [name, color] = elem_src.split('/').pop().split('.').shift().split('_');
 	const dest_path = elem_src.replace('/dev/', '/dist/').replace(`/${name}_${color}.png`, '');
 
 	// Badge icons
@@ -577,7 +580,7 @@ ${id}
 		scripts: {
 			start: 'node ./backend/server.js',
 			prod: `pm2 start ./backend/server.js --name ${id} && npm run logs`,
-			dev: 'nodemon ./backend/server.js',
+			dev: 'nodemon ./backend/server.js --ignore frontend/',
 			logs: `pm2 logs ${id} --raw`,
 			build: 'compost build'
 		},
@@ -611,9 +614,9 @@ ${id}
 	fs.writeFileSync(`${dest}/frontend/dev/index.html`, index);
 
 	// Add domain to service worker
-	let sw = fs.readFileSync(`${dest}/frontend/dev/sw-client.js`).toString();
-	sw = sw.replace('<domain>', new URL(url).origin);
-	fs.writeFileSync(`${dest}/frontend/dev/sw-client.js`, sw);
+	let sw = fs.readFileSync(`${dest}/frontend/dev/sw-server.js`).toString();
+	sw = sw.replace('<domain>', new URL(url).host);
+	fs.writeFileSync(`${dest}/frontend/dev/sw-server.js`, sw);
 
 	console.log(`${colors.green}Done!${colors.reset}\n`);
 }
