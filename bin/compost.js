@@ -382,23 +382,26 @@ async function compileIcon(elem_src) {
 	// Load icon
 	const icon = await loadImage(fs.readFileSync(elem_src));
 
-	let [name, color] = elem_src.split('/').pop().split('.').shift().split('_');
-	const dest_path = elem_src.replace('/dev/', '/dist/').replace(`/${name}_${color}.png`, '');
+	let [name, color] = path.basename(elem_src).split('.')[0].split('_');
+	const dest_path = path.join(elem_src, '..', '..', '..', '..', 'dist', 'imgs', 'icons');
+	console.dir(dest_path);
 
-	// Badge icons
-	fs.writeFileSync(`${dest_path}/badge_${name}_x512.png`, createIcon(icon, null, 512, 0, false).toBuffer());
-	fs.writeFileSync(`${dest_path}/badge_${name}_x192.png`, createIcon(icon, null, 192, 0, false).toBuffer());
+	// Icons config
+	const config = [
+		['badge', null, 512, 0, false],
+		['badge', null, 192, 0, false],
+		['maskable', color, 512, 512 * 0.2, false],
+		['maskable', color, 192, 192 * 0.2, false],
+		['round', color, 512, 512 * 0.15, true],
+		['round', color, 192, 192 * 0.15, true],
+		['apple', color, 180, 180 * 0.15, false]
+	];
 
-	// Maskable icons
-	fs.writeFileSync(`${dest_path}/maskable_${name}_x512.png`, createIcon(icon, color, 512, 512 * 0.2, false).toBuffer());
-	fs.writeFileSync(`${dest_path}/maskable_${name}_x192.png`, createIcon(icon, color, 192, 192 * 0.2, false).toBuffer());
-
-	// Round icons
-	fs.writeFileSync(`${dest_path}/round_${name}_x512.png`, createIcon(icon, color, 512, 512 * 0.15, true).toBuffer());
-	fs.writeFileSync(`${dest_path}/round_${name}_x192.png`, createIcon(icon, color, 192, 192 * 0.15, true).toBuffer());
-
-	// Apple icon
-	fs.writeFileSync(`${dest_path}/apple_${name}_x180.png`, createIcon(icon, color, 180, 180 * 0.15, false).toBuffer());
+	// Create icons
+	for (const [type, color, size, padding, round] of config) {
+		const src = path.join(dest_path, `${type}_${name}_x${size}.png`);
+		fs.writeFileSync(src, createIcon(icon, color, size, padding, round).toBuffer());
+	}
 }
 
 // Build function
