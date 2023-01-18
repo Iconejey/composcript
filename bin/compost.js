@@ -225,7 +225,7 @@ function replaceHTMLCode(code) {
 								code = code.slice(0, current) + new_tag + code.slice(current + tag.length);
 
 								// Move current to the end of the tag
-								current += new_tag.length - 1;
+								current += tag_name.length + 1;
 							}
 						}
 
@@ -384,7 +384,6 @@ async function compileIcon(elem_src) {
 
 	let [name, color] = path.basename(elem_src).split('.')[0].split('_');
 	const dest_path = path.join(elem_src, '..', '..', '..', '..', 'dist', 'imgs', 'icons');
-	console.dir(dest_path);
 
 	// Icons config
 	const config = [
@@ -445,7 +444,7 @@ async function build(log = true) {
 				// js file in scripts: add it to the compiled scripts
 				if (elem_src.endsWith('.js') && dir.endsWith('scripts')) compiled_scripts += content;
 				// jsx file: compile it and add it to the compiled scripts
-				else if (elem_src.endsWith('.jsx')) compiled_scripts += compileJSX(content, elem_src.includes('/components/') ? elem.replace('.jsx', '') : null);
+				else if (elem_src.endsWith('.jsx')) compiled_scripts += compileJSX(content, elem_src.includes(`${path.sep}components${path.sep}`) ? elem.replace('.jsx', '') : null);
 				// scss file: add it to the compiled scss
 				else if (elem_src.endsWith('.scss')) compiled_scss += content;
 				// html file: compile it and add it to dist
@@ -654,8 +653,15 @@ else if (arg === 'create') {
 	}
 }`;
 
-	const file_src = `frontend/dev/scripts/components/${tag}.jsx`;
+	// File directory
+	const file_dir = 'frontend/dev/scripts/components/';
+	if (!fs.existsSync(file_dir)) fs.mkdirSync(file_dir, { recursive: true });
+
+	// File source
+	const file_src = path.join(file_dir, `${tag}.jsx`);
 	fs.writeFileSync(file_src, output);
+
+	// Open file in VS Code
 	child_process.exec(`code ${file_src}`);
 }
 
@@ -679,7 +685,6 @@ else if (arg === 'watch') {
 	fs.watch('frontend/dev', { recursive: true }, (event, file) => {
 		if (timeout) clearTimeout(timeout);
 		timeout = setTimeout(() => {
-			console.clear();
 			console.log(`${colors.green}Change detected in ${file}${colors.reset}`);
 			build(false);
 		}, 1000);
