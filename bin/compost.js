@@ -43,15 +43,6 @@ function compileComponent(component_tag, code) {
 
 	let bottom_code = '';
 
-	const required_attributes = attributes.filter(a => a.includes('!')).map(a => a.replace('!', ''));
-
-	// Add static getter for required attributes
-	bottom_code += `
-				get requiredAttributes() {
-					return ${JSON.stringify(required_attributes)};
-				}
-	`;
-
 	// For each attribute
 	for (const attribute of attributes) {
 		// If attribute is a class
@@ -250,8 +241,8 @@ function replaceHTMLCode(code) {
 								html_code = html_code.replace(/<\/This>/g, '`');
 							}
 
-							// Else, replace it with a renderCompostHTMl() call
-							else html_code = `renderCompostHTMl(\`${html_code}\`)`;
+							// Else, replace it with a CompostComponent.render() call
+							else html_code = `CompostComponent.render(\`${html_code}\`)`;
 
 							// Add to the code
 							code = code.slice(0, start) + html_code + code.slice(current + tag.length);
@@ -687,7 +678,7 @@ else if (arg === 'watch') {
 		timeout = setTimeout(() => {
 			console.log(`${colors.green}Change detected in ${file}${colors.reset}`);
 			build(false);
-		}, 1000);
+		}, 500);
 	});
 }
 
