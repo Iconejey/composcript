@@ -217,6 +217,9 @@ function replaceHTMLCode(code) {
 
 								// Move current to the end of the tag
 								current += tag_name.length + 1;
+
+								// Increase height
+								height++;
 							}
 						}
 
