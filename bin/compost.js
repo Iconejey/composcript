@@ -383,10 +383,16 @@ async function compileIcon(elem_src) {
 	const config = [
 		['badge', null, 512, 0, false],
 		['badge', null, 192, 0, false],
+		['badge', null, 96, 0, false],
+
 		['maskable', color, 512, 512 * 0.2, false],
 		['maskable', color, 192, 192 * 0.2, false],
+		['maskable', color, 96, 192 * 0.2, false],
+
 		['round', color, 512, 512 * 0.15, true],
 		['round', color, 192, 192 * 0.15, true],
+		['round', color, 96, 96 * 0.15, true],
+
 		['apple', color, 180, 180 * 0.15, false]
 	];
 
@@ -581,7 +587,7 @@ ${id}
 			build: 'compost build'
 		},
 		author,
-		hompage: url
+		homepage: url
 	};
 
 	fs.writeFileSync('package.json', JSON.stringify(package, '\t', 4));
